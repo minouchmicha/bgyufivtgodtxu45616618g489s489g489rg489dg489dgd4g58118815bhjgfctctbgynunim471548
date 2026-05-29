@@ -101,6 +101,8 @@ const TRANSLATIONS = {
     log_msg_sent: 'You transferred {amount}$ to {target}',
     log_msg_received: '{sender} transferred {amount}$ to you',
     log_msg_daily: 'You claimed your daily reward',
+	log_msg_claim: 'You claimed the opening reward',
+	log_msg_resetlink: 'You link code has reset',
   },
   ar: {
     site_name: 'wallet',
@@ -180,6 +182,8 @@ const TRANSLATIONS = {
     log_msg_sent: 'لقد قمت بتحويل {amount}$ إلى {target}',
     log_msg_received: 'لقد قام {sender} بتحويل {amount}$ لك',
     log_msg_daily: 'لقد قمت باستلام مكافئتك اليومية',
+	log_msg_claim: 'لقد قمت باستلام مكافئة الافتتاح',
+	log_msg_resetlink: 'لقد تم اعادة تهيئ كود الربط',
   },
 };
 
@@ -754,27 +758,37 @@ app.get('/api/logs', async (req, res, next) => {
         const senderName = row.sender_global || row.sender_username || row.user_id;
         const targetName = row.target_global || row.target_username || row.target_id;
 
-        if (row.type === 'daily' || row.type === 'claim') {
-          text = tr(req, 'log_msg_daily');
-          color = 'green';
-          prefix = '+';
-        } else if (row.type === 'transfare') {
-          if (row.user_id === currentUserId) {
-            // تحويل صادر من الحساب الحالي (أحمر)
-            text = tr(req, 'log_msg_sent')
-              .replace('{amount}', row.amount)
-              .replace('{target}', targetName);
-            color = 'red';
-            prefix = '-';
-          } else {
-            // تحويل وارد إلى الحساب الحالي (أخضر)
-            text = tr(req, 'log_msg_received')
-              .replace('{amount}', row.amount)
-              .replace('{sender}', senderName);
-            color = 'green';
-            prefix = '+';
-          }
-        }
+        if (row.type === 'daily') {
+  text = tr(req, 'log_msg_daily');
+  color = 'green';
+  prefix = '+';
+} else if (row.type === 'claim') {
+  // رسالة مخصصة لهدية الافتتاح
+  text = tr(req, 'log_msg_claim') || 'استلام هدية افتتاح السيرفر';
+  color = 'green';
+  prefix = '+';
+} else if (row.type === 'resetlink') {
+  // إعادة تعيين كود الربط (لا يوجد زيادة أو نقصان في المال)
+  text = tr(req, 'log_msg_resetlink') || 'إعادة تعيين كود ربط الحساب';
+  color = 'gray'; // أو 'blue' حسب التصميم الخاص بموقعك
+  prefix = '';    // تترك فارغة لأنه لم يتم تحويل أو استلام مال
+} else if (row.type === 'transfare') {
+  if (row.user_id === currentUserId) {
+    // تحويل صادر من الحساب الحالي (أحمر)
+    text = tr(req, 'log_msg_sent')
+      .replace('{amount}', row.amount)
+      .replace('{target}', targetName);
+    color = 'red';
+    prefix = '-';
+  } else {
+    // تحويل وارد إلى الحساب الحالي (أخضر)
+    text = tr(req, 'log_msg_received')
+      .replace('{amount}', row.amount)
+      .replace('{sender}', senderName);
+    color = 'green';
+    prefix = '+';
+  }
+}
 
         return {
           id: row.id,
