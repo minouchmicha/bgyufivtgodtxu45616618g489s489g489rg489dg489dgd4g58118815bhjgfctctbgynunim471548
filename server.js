@@ -430,7 +430,7 @@ async function currentUserPayload(req) {
     role: roleName(row),
     balance: Number(row?.balance || 0),
     rank: await balanceRank(discordId),
-    lastDaily: dtIso(row?.lastDaily),
+    lastDaily: row?.lastDaily || null,
     daily_available: remaining <= 0,
     daily_remaining: remaining,
   };
