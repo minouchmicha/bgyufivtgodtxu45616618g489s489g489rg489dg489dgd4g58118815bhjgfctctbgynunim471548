@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% set title = t('leaderboard_title') %}
+
 {% block content %}
 <section class="hero">
   <div class="eyebrow">🏆 {{ t('leaderboard_title') }}</div>
@@ -13,34 +14,80 @@
   <div id="board" class="list"></div>
 </section>
 {% endblock %}
+
 {% block scripts %}
 <script>
-  async function loadBoard(){
-    const board = document.getElementById('board');
-    board.innerHTML = `<div class="notice">...</div>`;
-    const res = await fetch('/api/leaderboard');
-    const data = await res.json();
-    if (data.error){
-      board.innerHTML = `<div class="notice err">${data.error}</div>`;
-      return;
+  function formatMoney(value) {
+    const n = Number(value || 0);
+    try {
+      return n.toLocaleString('en-US');
+    } catch {
+      return String(n);
     }
-    if (!data.items || !data.items.length){
-      board.innerHTML = `<div class="notice">{{ t('no_user') }}</div>`;
-      return;
-    }
-    board.innerHTML = data.items.map(item => `
-      <div class="entry">
-        <div class="entry-left">
-          <img class="small-avatar" src="${item.avatar_url}" alt="avatar">
-          <div style="min-width:0">
-            <div class="name">#${item.rank} · ${item.display_name}</div>
-            <div class="sub">${item.role || '—'} · ${item.username}</div>
-          </div>
-        </div>
-        <div class="badge">${money(item.balance)} {{ t('balance') }}</div>
-      </div>
-    `).join('');
   }
+
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function safeName(item) {
+    return (
+      item?.display_name ||
+      item?.username ||
+      item?.discord_id ||
+      item?.raw_discord_id ||
+      '—'
+    );
+  }
+
+  async function loadBoard() {
+    const board = document.getElementById('board');
+    if (!board) return;
+
+    board.innerHTML = `<div class="notice">...</div>`;
+
+    try {
+      const res = await fetch('/api/leaderboard', { cache: 'no-store' });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        board.innerHTML = `<div class="notice err">${escapeHtml(data?.error || 'Error')}</div>`;
+        return;
+      }
+
+      if (!data.items || !data.items.length) {
+        board.innerHTML = `<div class="notice">{{ t('no_user') }}</div>`;
+        return;
+      }
+
+      board.innerHTML = data.items.map((item) => {
+        const name = safeName(item);
+        const role = item?.role || '—';
+        const balance = formatMoney(item?.balance);
+
+        return `
+          <div class="entry">
+            <div class="entry-left">
+              <img class="small-avatar" src="${escapeHtml(item?.avatar_url || '')}" alt="avatar">
+              <div style="min-width:0">
+                <div class="name">#${item.rank} · ${escapeHtml(name)}</div>
+                <div class="sub">${escapeHtml(role)} · ${escapeHtml(item?.discord_id || item?.raw_discord_id || '')}</div>
+              </div>
+            </div>
+            <div class="badge">${balance} {{ t('balance') }}</div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      board.innerHTML = `<div class="notice err">${escapeHtml(err?.message || 'Network error')}</div>`;
+    }
+  }
+
   loadBoard();
 </script>
 {% endblock %}
